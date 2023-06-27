@@ -9,6 +9,9 @@ router.route('/:orderId')
 
 
 router.route('/')
+    .get(controller.list)
+    .post(controller.create)
+    .all(methodNotAllowed);
 
 
 
