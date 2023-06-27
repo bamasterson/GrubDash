@@ -56,6 +56,50 @@ function create(req, res, next) {
     dishes.push(newDish);
     res.status(201).json({ data: newDish });
 }
+// validator for update
+function dishExists(req, res, next) {
+    const { dishId } = req.params;
+    const foundDish = dishes.find((dish) => dish.id === dishId);
+
+    if (foundDish) {
+        res.locals.dish = foundDish;
+        next();
+    }
+
+    next({
+        status: 404,
+        message: `Dish id not found: ${dishId}`,
+    });
+}
+
+// read function
+function read(req, res, next) {
+    const dish = res.locals.dish;
+    res.json({ data: dish });
+}
+
+//update function
+function update(req, res, next) {
+    const { dishId } = req.params;
+    const { data: { id, name, description, price, image_url } = {} } = req.body;
+
+    if (id && dishId !== id){
+        next({
+            status: 400,
+            message: `Dish id does not match route id. Dish: ${id}, Route: ${dishId}`,
+        });
+    }
+
+    const updatedDish = {
+        name,
+        description,
+        price,
+        image_url,
+    };
+
+    Object.assign(res.locals.dish, updatedDish);
+    res.json({ data: res.locals.dish });
+}
 
 module.exports = {
     list,
@@ -63,5 +107,14 @@ module.exports = {
         dishValidator,
         create
     ],
+    read: [
+        dishExists,
+        read
+    ],
+    update: [
+        dishExists,
+        dishValidator,
+        update
+    ],
 
-}
+};
