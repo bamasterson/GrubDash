@@ -68,6 +68,79 @@ function create(req, res, next) {
     res.status(201).json({ data: newOrder });
   }
 
+//order existence validator
+function orderExists(req, res, next) {
+    const { orderId } = req.params;
+    const foundOrder = orders.find((order) => order.id === orderId);
+
+    if (foundOrder){
+        res.locals.order = foundOrder;
+        next();
+    }
+    next({
+        status: 404,
+        message: `Order id not found: ${orderId}`,
+    });
+}
+
+//read function
+function read(req, res, next){
+    const order = res.locals.order;
+    res.json({ data: order });
+}
+
+//update function
+function update(req, res, next){
+    const { orderId } = req.params;
+    const { data: { id, deliverTo, mobileNumber, dishes, status } = {}, } = req.body;
+
+    if (id && orderId !== id){
+        next({
+            status: 400,
+            message: `Order id does not match route id. Order: ${id}, Route: ${orderId}`,
+        });
+    }
+
+    if (!status || status === "invalid"){
+        next({
+            status: 400,
+            message: "Order must have a status of pending, preparing, out-for-delivery, delivered",
+        });
+    }
+
+    if (res.locals.order.status === "delivered"){
+        next({
+            status: 400,
+            message: "A delivered order cannot be changed",
+        });
+    }
+
+    const updatedOrder = {
+        deliverTo,
+        mobileNumber,
+        dishes,
+        status,
+    };
+
+    Object.assign(res.locals.order, updatedOrder);
+    res.json({ data: res.locals.order });
+}
+
+//delete function
+function destroy(req, res, next){
+    const orderToDelete = res.locals.order;
+
+    if(orderToDelete.status !== "pending"){
+        next({
+            status: 400,
+            message: "An order cannot be deleted unless it is pending",
+        });
+    }
+
+    const index = orders.findIndex((order) => order.id === orderToDelete.id);
+    orders.splice(index, 1);
+    res.sendStatus(204);
+}
 
 module.exports = {
     list,
@@ -75,5 +148,17 @@ module.exports = {
         newOrderValidator,
         create
     ],
-
-}
+    read: [
+        orderExists,
+        read
+    ],
+    update: [
+        orderExists,
+        newOrderValidator,
+        update
+    ],
+    delete: [
+        orderExists,
+        destroy
+    ],
+};
